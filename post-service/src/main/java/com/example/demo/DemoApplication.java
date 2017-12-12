@@ -36,42 +36,42 @@ public class DemoApplication {
     }
 
     @Bean
-    WebSessionIdResolver webSessionIdResolver() {
-        HeaderWebSessionIdResolver  webSessionIdResolver =  new HeaderWebSessionIdResolver();
-        webSessionIdResolver.setHeaderName("X-AUTH-TOKEN");
-        return webSessionIdResolver;
-    }
+        WebSessionIdResolver webSessionIdResolver() {
+            HeaderWebSessionIdResolver  webSessionIdResolver =  new HeaderWebSessionIdResolver();
+            webSessionIdResolver.setHeaderName("X-AUTH-TOKEN");
+            return webSessionIdResolver;
+        }
 
-    @Bean
-    SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
-        return http
-                .authorizeExchange()
-                .pathMatchers(HttpMethod.GET, "/posts/**").permitAll()
-                .pathMatchers(HttpMethod.DELETE, "/posts/**").hasRole("ADMIN")
-                .anyExchange().authenticated()
-                .and()
-                .build();
-    }
-    
-    @Bean
-    public RouterFunction<ServerResponse> routes(
-            PostRepository posts, 
-            PostHandler postController, 
-            CommentHandler commentHandler) {
-        RouterFunction<ServerResponse> commentsRoutes = route(GET("/"), commentHandler::all)
-                .andRoute(POST("/"), commentHandler::create)
-                .andRoute(GET("/{commentid}"), commentHandler::get)
-                .andRoute(PUT("/{commentid}"), commentHandler::update)
-                .andRoute(DELETE("/{commentid}"), commentHandler::delete);
+        @Bean
+        SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
+            return http
+                    .authorizeExchange()
+                    .pathMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                    .pathMatchers(HttpMethod.DELETE, "/posts/**").hasRole("ADMIN")
+                    .anyExchange().authenticated()
+                    .and()
+                    .build();
+        }
 
-        RouterFunction<ServerResponse> postsRoutes = route(GET("/"), postController::all)
-                .andRoute(POST("/"), postController::create)
-                .andRoute(GET("/{slug}"), postController::get)
-                .andRoute(PUT("/{slug}"), postController::update)
-                .andRoute(DELETE("/{slug}"), postController::delete)
-                .andNest(path("/{slug}/comments"), commentsRoutes);
+        @Bean
+        public RouterFunction<ServerResponse> routes(
+                PostRepository posts,
+                PostHandler postController,
+                CommentHandler commentHandler) {
+            RouterFunction<ServerResponse> commentsRoutes = route(GET("/"), commentHandler::all)
+                    .andRoute(POST("/"), commentHandler::create)
+                    .andRoute(GET("/{commentid}"), commentHandler::get)
+                    .andRoute(PUT("/{commentid}"), commentHandler::update)
+                    .andRoute(DELETE("/{commentid}"), commentHandler::delete);
 
-        return nest(path("/posts"), postsRoutes);
+            RouterFunction<ServerResponse> postsRoutes = route(GET("/"), postController::all)
+                    .andRoute(POST("/"), postController::create)
+                    .andRoute(GET("/{slug}"), postController::get)
+                    .andRoute(PUT("/{slug}"), postController::update)
+                    .andRoute(DELETE("/{slug}"), postController::delete)
+                    .andNest(path("/{slug}/comments"), commentsRoutes);
+
+            return nest(path("/posts"), postsRoutes);
     }
 
     @Bean

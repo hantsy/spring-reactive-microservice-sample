@@ -54,15 +54,8 @@ public class AuthServiceApplication {
     }
 
     @Bean
-    public RouterFunction<ServerResponse> routes(
-            UserHandler userHandler) {
-        return route(GET("/"), userHandler::current)
-                .andRoute(GET("/exists"), userHandler::exists);
-    }
-
-    @Bean
     WebSessionIdResolver webSessionIdResolver() {
-        HeaderWebSessionIdResolver webSessionIdResolver =  new HeaderWebSessionIdResolver();
+        HeaderWebSessionIdResolver webSessionIdResolver = new HeaderWebSessionIdResolver();
         webSessionIdResolver.setHeaderName("X-AUTH-TOKEN");
         return webSessionIdResolver;
     }
@@ -101,6 +94,13 @@ public class AuthServiceApplication {
                 )
                 .cast(UserDetails.class);
     }
+
+    @Bean
+    public RouterFunction<ServerResponse> routes(
+            UserHandler userHandler) {
+        return route(GET("/"), userHandler::current)
+                .andRoute(GET("/exists"), userHandler::exists);
+    }
 }
 
 
@@ -129,7 +129,7 @@ class UserHandler {
 
     public Mono<ServerResponse> exists(ServerRequest req) {
         return Mono.justOrEmpty(req.queryParam("useranme"))
-                .flatMap(username -> this.users.findByUsername(username))
+                .flatMap(this.users::findByUsername)
                 .flatMap(user -> ok().body(BodyInserters.fromObject(UsernameAvailability.builder().build())))
                 .switchIfEmpty(ok().body(BodyInserters.fromObject(new UsernameAvailability(true))));
     }
