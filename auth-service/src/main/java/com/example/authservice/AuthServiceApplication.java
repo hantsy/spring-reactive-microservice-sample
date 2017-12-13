@@ -1,31 +1,24 @@
 package com.example.authservice;
 
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.cassandra.core.ReactiveCassandraTemplate;
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
+import org.springframework.data.cassandra.core.mapping.Table;
 import org.springframework.data.cassandra.core.query.Query;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-import org.springframework.data.cassandra.core.mapping.PrimaryKey;
-import org.springframework.data.cassandra.core.mapping.Table;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authorization.AuthorizationContext;
 import org.springframework.stereotype.Component;
@@ -35,14 +28,17 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.*;
 
 import static java.util.stream.Collectors.toList;
 import static org.springframework.data.cassandra.core.query.Criteria.where;
 import static org.springframework.data.cassandra.core.query.Query.query;
-import static org.springframework.security.core.userdetails.User.withUserDetails;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+import static org.springframework.web.reactive.function.server.ServerResponse.badRequest;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 
@@ -65,6 +61,7 @@ public class AuthServiceApplication {
         return http
                 .authorizeExchange()
                 .pathMatchers(HttpMethod.GET, "/users/exists").permitAll()
+                .pathMatchers(HttpMethod.GET, "/user").authenticated()
                 .pathMatchers("/users/{user}/**").access(this::currentUserMatchesPath)
                 .anyExchange().authenticated()
                 .and()
@@ -98,8 +95,8 @@ public class AuthServiceApplication {
     @Bean
     public RouterFunction<ServerResponse> routes(
             UserHandler userHandler) {
-        return route(GET("/"), userHandler::current)
-                .andRoute(GET("/exists"), userHandler::exists);
+        return route(GET("/user"), userHandler::current)
+                .andRoute(GET("/users/exists"), userHandler::exists);
     }
 }
 
@@ -128,11 +125,60 @@ class UserHandler {
     }
 
     public Mono<ServerResponse> exists(ServerRequest req) {
+
+        Mono<ServerResponse> emailExists = Mono.justOrEmpty(req.queryParam("email"))
+                .flatMap(email -> this.users.findByEmail(email)
+                        .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
+                        .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
+                )
+                .switchIfEmpty(badRequest().syncBody(Collections.singletonMap("error", "request param username or email is required.")));
+
         return Mono.justOrEmpty(req.queryParam("useranme"))
-                .flatMap(this.users::findByUsername)
-                .flatMap(user -> ok().body(BodyInserters.fromObject(UsernameAvailability.builder().build())))
-                .switchIfEmpty(ok().body(BodyInserters.fromObject(new UsernameAvailability(true))));
+                .flatMap(name -> this.users.findByUsername(name)
+                        .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
+                        .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
+                )
+                .switchIfEmpty(emailExists);
     }
+}
+
+@Component
+@Slf4j
+class DataInitializer {
+
+    private final UserRepository users;
+
+    public DataInitializer(UserRepository users) {
+        this.users = users;
+    }
+
+    @EventListener(value = ApplicationReadyEvent.class)
+    private void init() {
+        log.info("start users initialization  ...");
+        this.users
+                .deleteAll()
+                .thenMany(
+                        Flux
+                                .just("user", "admin")
+                                .flatMap(
+                                        username -> {
+                                            List<String> roles = "user".equals(username)
+                                                    ? Arrays.asList("ROLE_USER")
+                                                    : Arrays.asList("ROLE_USER", "ROLE_ADMIN");
+
+                                            User user = User.builder().roles(roles).email(username+"@example.com").username(username).password("password").build();
+                                            return this.users.save(user);
+                                        }
+                                )
+                )
+                .log()
+                .subscribe(
+                        null,
+                        null,
+                        () -> log.info("done users initialization...")
+                );
+    }
+
 }
 
 @Component
@@ -152,6 +198,14 @@ class UserRepository {
                 );
     }
 
+    public Mono<User> findByEmail(String email) {
+        return this.template
+                .selectOne(
+                        query(where("email").is(email)),
+                        User.class
+                );
+    }
+
     public Mono<User> save(User user) {
         return this.template.insert(user);
     }
@@ -160,14 +214,6 @@ class UserRepository {
         return this.template.delete(Query.empty(), User.class);
     }
 
-}
-
-@Data
-@AllArgsConstructor
-@Builder
-class UsernameAvailability {
-    @Builder.Default
-    private boolean available = false;
 }
 
 @Data
@@ -181,6 +227,8 @@ class User {
     @PrimaryKey
     private String username;
     private String password;
+
+    private String email;
 
     @Builder.Default
     private boolean active = true;

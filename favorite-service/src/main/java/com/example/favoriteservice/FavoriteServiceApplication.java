@@ -20,6 +20,7 @@ import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 
 import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 import static org.springframework.web.reactive.function.server.RouterFunctions.nest;
@@ -44,9 +45,8 @@ public class FavoriteServiceApplication {
     @Bean
     SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
         return http
+                .csrf().disable()
                 .authorizeExchange()
-                .pathMatchers(HttpMethod.GET, "/posts/**").permitAll()
-                .pathMatchers(HttpMethod.DELETE, "/posts/**").hasRole("ADMIN")
                 .anyExchange().authenticated()
                 .and()
                 .build();
@@ -54,8 +54,8 @@ public class FavoriteServiceApplication {
 
     @Bean
     public RouterFunction<ServerResponse> routes(FavoriteHandler favoriteHandler) {
-        RouterFunction<ServerResponse> usersRoutes = route(GET("/{username}/favorites"), favoriteHandler::favoritedPosts)
-        RouterFunction<ServerResponse> postsRoutes = route(POST("/{slug}/favorited"), favoriteHandler::favorited)
+        RouterFunction<ServerResponse> usersRoutes = route(GET("/{username}/favorites"), favoriteHandler::favoritedPosts);
+        RouterFunction<ServerResponse> postsRoutes = route(GET("/{slug}/favorited"), favoriteHandler::favorited)
                 .andRoute(GET("/{slug}/favorites"), favoriteHandler::all)
                 .andRoute(POST("/{slug}/favorites"), favoriteHandler::favorite)
                 .andRoute(DELETE("/{slug}/favorites"), favoriteHandler::unfavorite);
@@ -85,8 +85,9 @@ class FavoriteHandler {
                                         ByteBuffer.wrap(("posts:" + slug + ":favorites").getBytes()),
                                         Range.of(Range.Bound.inclusive(0L), Range.Bound.inclusive(-1L))
                                 )
+                                .map(this::toString)
                                 .collectList()
-                                .map(f -> f.contains(name))
+                                .map(f -> Collections.singletonMap("favorited", f.contains(name)))
                 )
                 .flatMap(f -> ok().body(BodyInserters.fromObject(f)));
 
@@ -100,6 +101,7 @@ class FavoriteHandler {
                         ByteBuffer.wrap(("posts:" + slug + ":favorites").getBytes()),
                         Range.of(Range.Bound.inclusive(0L), Range.Bound.inclusive(-1L))
                 )
+                .map(this::toString)
                 .collectList()
                 .flatMap(f -> ok().body(BodyInserters.fromObject(f)));
     }
@@ -114,6 +116,7 @@ class FavoriteHandler {
                                         ByteBuffer.wrap(("users:" + name + ":favorites").getBytes()),
                                         Range.of(Range.Bound.inclusive(0L), Range.Bound.inclusive(-1L))
                                 )
+                                .map(this::toString)
                                 .collectList()
                 )
                 .flatMap(f -> ok().body(BodyInserters.fromObject(f)));
@@ -127,9 +130,9 @@ class FavoriteHandler {
                 .flatMap(
                         name -> this.conn.zSetCommands()
                                 .zAdd(ByteBuffer.wrap(("posts:" + slug + ":favorites").getBytes()), 1.0D, ByteBuffer.wrap(name.getBytes()))
-                                .and(this.conn.zSetCommands().zAdd(ByteBuffer.wrap(("users:" + name + ":favorites").getBytes()), 1.0D, ByteBuffer.wrap(slug.getBytes())))
+                                .then(this.conn.zSetCommands().zAdd(ByteBuffer.wrap(("users:" + name + ":favorites").getBytes()), 1.0D, ByteBuffer.wrap(slug.getBytes())))
                 )
-                .flatMap(f -> noContent().build());
+                .flatMap(f -> ok().build());
     }
 
 
@@ -140,13 +143,13 @@ class FavoriteHandler {
                 .flatMap(
                         name -> this.conn.zSetCommands()
                                 .zRem(ByteBuffer.wrap(("posts:" + slug + ":favorites").getBytes()), ByteBuffer.wrap(name.getBytes()))
-                                .and(this.conn.zSetCommands().zRem(ByteBuffer.wrap(("users:" + name + ":favorites").getBytes()), ByteBuffer.wrap(slug.getBytes())))
+                                .then(this.conn.zSetCommands().zRem(ByteBuffer.wrap(("users:" + name + ":favorites").getBytes()), ByteBuffer.wrap(slug.getBytes())))
                 )
                 .flatMap(f -> noContent().build());
 
     }
 
-    private static String toString(ByteBuffer byteBuffer) {
+    private String toString(ByteBuffer byteBuffer) {
         byte[] bytes = new byte[byteBuffer.remaining()];
         byteBuffer.get(bytes);
         return new String(bytes);
