@@ -2,16 +2,24 @@ package com.example.authservice;
 
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.cassandra.core.ReactiveCassandraTemplate;
+import org.springframework.data.cassandra.config.AbstractReactiveCassandraConfiguration;
+import org.springframework.data.cassandra.config.SchemaAction;
+import org.springframework.data.cassandra.core.cql.keyspace.CreateKeyspaceSpecification;
+import org.springframework.data.cassandra.core.cql.keyspace.DropKeyspaceSpecification;
+import org.springframework.data.cassandra.core.cql.keyspace.KeyspaceOption;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
-import org.springframework.data.cassandra.core.query.Query;
+import org.springframework.data.cassandra.repository.Query;
+import org.springframework.data.cassandra.repository.ReactiveCassandraRepository;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
@@ -19,6 +27,9 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authorization.AuthorizationContext;
 import org.springframework.stereotype.Component;
@@ -34,8 +45,6 @@ import reactor.core.publisher.Mono;
 import java.util.*;
 
 import static java.util.stream.Collectors.toList;
-import static org.springframework.data.cassandra.core.query.Criteria.where;
-import static org.springframework.data.cassandra.core.query.Query.query;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.badRequest;
@@ -50,6 +59,11 @@ public class AuthServiceApplication {
     }
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
     WebSessionIdResolver webSessionIdResolver() {
         HeaderWebSessionIdResolver webSessionIdResolver = new HeaderWebSessionIdResolver();
         webSessionIdResolver.setHeaderName("X-AUTH-TOKEN");
@@ -59,6 +73,7 @@ public class AuthServiceApplication {
     @Bean
     SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
         return http
+                .csrf().disable()
                 .authorizeExchange()
                 .pathMatchers(HttpMethod.GET, "/users/exists").permitAll()
                 .pathMatchers(HttpMethod.GET, "/user").authenticated()
@@ -79,17 +94,18 @@ public class AuthServiceApplication {
         return (username) -> users
                 .findByUsername(username)
                 .map(user -> org.springframework.security.core.userdetails.User
-                        .withDefaultPasswordEncoder()
-                        .username(user.getUsername())
+                        .withUsername(user.getUsername())
                         .password(user.getPassword())
                         .authorities(user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(toList()))
-                        .accountExpired(!user.isActive())
-                        .credentialsExpired(!user.isActive())
-                        .accountLocked(!user.isActive())
                         .disabled(!user.isActive())
+                        .accountLocked(!user.isActive())
+                        .credentialsExpired(!user.isActive())
+                        .accountExpired(!user.isActive())
+                        .accountExpired(!user.isActive())
                         .build()
-                )
-                .cast(UserDetails.class);
+
+                );
+                //.cast(UserDetails.class);
     }
 
     @Bean
@@ -98,6 +114,48 @@ public class AuthServiceApplication {
         return route(GET("/user"), userHandler::current)
                 .andRoute(GET("/users/exists"), userHandler::exists);
     }
+}
+
+@Configuration
+class CassandraConfig extends AbstractReactiveCassandraConfiguration {
+
+    @Value("${cassandra.keyspace-name}")
+    String keySpace;
+
+    @Value("${cassandra.contact-points}")
+    String contactPoints;
+
+    @Override
+    protected List<CreateKeyspaceSpecification> getKeyspaceCreations() {
+
+        CreateKeyspaceSpecification specification = CreateKeyspaceSpecification.createKeyspace(keySpace)
+                .ifNotExists()
+                .with(KeyspaceOption.DURABLE_WRITES, true);
+        //.withNetworkReplication(DataCenterReplication.dcr("foo", 1), DataCenterReplication.dcr("bar", 2));
+
+        return Arrays.asList(specification);
+    }
+
+    @Override
+    protected List<DropKeyspaceSpecification> getKeyspaceDrops() {
+        return Arrays.asList(DropKeyspaceSpecification.dropKeyspace(keySpace).ifExists());
+    }
+
+    @Override
+    protected String getKeyspaceName() {
+        return keySpace;
+    }
+
+    @Override
+    protected String getContactPoints() {
+        return contactPoints;
+    }
+
+    @Override
+    public SchemaAction getSchemaAction() {
+        return SchemaAction.RECREATE;
+    }
+
 }
 
 
@@ -112,6 +170,8 @@ class UserHandler {
 
     public Mono<ServerResponse> current(ServerRequest req) {
         return req.principal()
+                .cast(UsernamePasswordAuthenticationToken.class)
+                .map(u -> u.getPrincipal())
                 .cast(UserDetails.class)
                 .map(
                         user -> {
@@ -133,7 +193,7 @@ class UserHandler {
                 )
                 .switchIfEmpty(badRequest().syncBody(Collections.singletonMap("error", "request param username or email is required.")));
 
-        return Mono.justOrEmpty(req.queryParam("useranme"))
+        return Mono.justOrEmpty(req.queryParam("username"))
                 .flatMap(name -> this.users.findByUsername(name)
                         .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
                         .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
@@ -147,9 +207,11 @@ class UserHandler {
 class DataInitializer {
 
     private final UserRepository users;
+    private final PasswordEncoder passwordEncoder;
 
-    public DataInitializer(UserRepository users) {
+    public DataInitializer(UserRepository users, PasswordEncoder passwordEncoder) {
         this.users = users;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @EventListener(value = ApplicationReadyEvent.class)
@@ -166,7 +228,7 @@ class DataInitializer {
                                                     ? Arrays.asList("ROLE_USER")
                                                     : Arrays.asList("ROLE_USER", "ROLE_ADMIN");
 
-                                            User user = User.builder().roles(roles).email(username+"@example.com").username(username).password("password").build();
+                                            User user = User.builder().roles(roles).email(username + "@example.com").username(username).password(this.passwordEncoder.encode("password")).build();
                                             return this.users.save(user);
                                         }
                                 )
@@ -182,39 +244,47 @@ class DataInitializer {
 }
 
 @Component
-class UserRepository {
+interface UserRepository extends ReactiveCassandraRepository<User, String> {
+    Mono<User> findByUsername(String username);
 
-    private final ReactiveCassandraTemplate template;
-
-    public UserRepository(ReactiveCassandraTemplate template) {
-        this.template = template;
-    }
-
-    public Mono<User> findByUsername(String username) {
-        return this.template
-                .selectOne(
-                        query(where("username").is(username)),
-                        User.class
-                );
-    }
-
-    public Mono<User> findByEmail(String email) {
-        return this.template
-                .selectOne(
-                        query(where("email").is(email)),
-                        User.class
-                );
-    }
-
-    public Mono<User> save(User user) {
-        return this.template.insert(user);
-    }
-
-    public Mono<Boolean> deleteAll() {
-        return this.template.delete(Query.empty(), User.class);
-    }
-
+    // NOTE, be very careful about ALLOW FILTERING in real world apps, this
+    // may affect scalability quite a lot. Filtering is efficient over primary
+    // keys, not on all generic columns
+    @Query("SELECT * FROM users WHERE email = ?0 ALLOW FILTERING")
+    Mono<User> findByEmail(String email);
 }
+
+// class UserRepository{
+//    private final ReactiveCassandraTemplate template;
+//
+//    public UserRepository(ReactiveCassandraTemplate template) {
+//        this.template = template;
+//    }
+//
+//    public Mono<User> findByUsername(String username) {
+//        return this.template
+//                .selectOne(
+//                        query(where("username").is(username)),
+//                        User.class
+//                );
+//    }
+//
+//    public Mono<User> findByEmail(String email) {
+//        return this.template
+//                .selectOne(
+//                        query(where("email").is(email)),
+//                        User.class
+//                );
+//    }
+//
+//    public Mono<User> save(User user) {
+//        return this.template.insert(user);
+//    }
+//
+//    public Mono<Boolean> deleteAll() {
+//        return this.template.delete(Query.empty(), User.class);
+//    }
+//}
 
 @Data
 @ToString
@@ -234,7 +304,6 @@ class User {
     private boolean active = true;
     @Builder.Default
     private List<String> roles = new ArrayList<>();
-
 
 }
 

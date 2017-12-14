@@ -7,9 +7,13 @@ package com.example.demo;
 
 import java.net.URI;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+
+import static org.springframework.web.reactive.function.server.ServerResponse.*;
+
 
 /**
  *
@@ -25,21 +29,21 @@ class PostHandler {
     }
 
     public Mono<ServerResponse> all(ServerRequest req) {
-        return ServerResponse.ok().body(this.posts.findAll(), Post.class);
+        return ok().body(this.posts.findAll(), Post.class);
     }
 
     public Mono<ServerResponse> create(ServerRequest req) {
         return req
             .bodyToMono(Post.class)
-            .flatMap((post) -> this.posts.save(post))
-            .flatMap((p) -> ServerResponse.created(URI.create("/posts/" + p.getSlug())).build());
+            .flatMap((post) ->{ post.setSlug(Utils.slugify(post.getTitle())); return this.posts.save(post);})
+            .flatMap((p) ->created(URI.create("/posts/" + p.getSlug())).build());
     }
 
     public Mono<ServerResponse> get(ServerRequest req) {
         return this.posts
             .findBySlug(req.pathVariable("slug"))
-            .flatMap((post) -> ServerResponse.ok().body(Mono.just(post), Post.class))
-            .switchIfEmpty(ServerResponse.notFound().build());
+            .flatMap((post) -> ok().body(BodyInserters.fromObject(post)))
+            .switchIfEmpty(notFound().build());
     }
 
     public Mono<ServerResponse> update(ServerRequest req) {
@@ -57,11 +61,11 @@ class PostHandler {
             )
             .cast(Post.class)
             .flatMap((post) -> this.posts.save(post))
-            .flatMap((post) -> ServerResponse.noContent().build());
+            .flatMap((post) -> noContent().build());
     }
 
     public Mono<ServerResponse> delete(ServerRequest req) {
-        return ServerResponse.noContent().build(this.posts.deleteById(req.pathVariable("slug")));
+        return noContent().build(this.posts.deleteById(req.pathVariable("slug")));
     }
     
 }
