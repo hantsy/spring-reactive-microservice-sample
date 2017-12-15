@@ -7,6 +7,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.server.WebFilterChainProxy;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -17,6 +18,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.RouterFunction;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Random;
 
 import static org.junit.Assert.assertNotNull;
@@ -73,6 +75,16 @@ public class DemoApplicationTests {
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.UNAUTHORIZED);
     }
+
+//    @Test
+//    public void testPostStream() {
+//        client.mutate().responseTimeout(Duration.ofSeconds(60L)).build()
+//                .get()
+//                .uri("/posts")
+//                .accept(MediaType.APPLICATION_STREAM_JSON)
+//                .exchange()
+//                .expectStatus().isOk();
+//    }
 
     @Test
     @WithMockUser(roles = "ADMIN")
