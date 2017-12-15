@@ -14,7 +14,7 @@
         <module>auth-service</module>
         <module>post-service</module>
         <module>favorite-service</module>
-        <!--<module>functional-tests</module>-->
+        <module>eureka-service</module>
     </modules>
 	
 </project>

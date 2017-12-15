@@ -246,7 +246,7 @@ class DataInitializer {
 
 }
 
-@Component
+
 interface UserRepository extends ReactiveCassandraRepository<User, String> {
     Mono<User> findByUsername(String username);
 
@@ -256,7 +256,7 @@ interface UserRepository extends ReactiveCassandraRepository<User, String> {
     @Query("SELECT * FROM users WHERE email = ?0 ALLOW FILTERING")
     Mono<User> findByEmail(String email);
 }
-
+// @Component
 // class UserRepository{
 //    private final ReactiveCassandraTemplate template;
 //
