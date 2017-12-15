@@ -32,6 +32,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authorization.AuthorizationContext;
+import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -74,6 +75,8 @@ public class AuthServiceApplication {
     SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
         return http
                 .csrf().disable()
+                .httpBasic().securityContextRepository(new WebSessionServerSecurityContextRepository())
+                .and()
                 .authorizeExchange()
                 .pathMatchers(HttpMethod.GET, "/users/exists").permitAll()
                 .pathMatchers(HttpMethod.GET, "/user").authenticated()
@@ -96,7 +99,7 @@ public class AuthServiceApplication {
                 .map(user -> org.springframework.security.core.userdetails.User
                         .withUsername(user.getUsername())
                         .password(user.getPassword())
-                        .authorities(user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(toList()))
+                        .authorities(user.getRoles().toArray(new String[user.getRoles().size()]))
                         .disabled(!user.isActive())
                         .accountLocked(!user.isActive())
                         .credentialsExpired(!user.isActive())
@@ -225,8 +228,8 @@ class DataInitializer {
                                 .flatMap(
                                         username -> {
                                             List<String> roles = "user".equals(username)
-                                                    ? Arrays.asList("ROLE_USER")
-                                                    : Arrays.asList("ROLE_USER", "ROLE_ADMIN");
+                                                    ? Arrays.asList("USER")
+                                                    : Arrays.asList("USER", "ADMIN");
 
                                             User user = User.builder().roles(roles).email(username + "@example.com").username(username).password(this.passwordEncoder.encode("password")).build();
                                             return this.users.save(user);
