@@ -13,6 +13,7 @@ import org.springframework.cloud.gateway.route.builder.routes
 import org.springframework.cloud.netflix.hystrix.HystrixCommands
 import org.springframework.context.support.beans
 import org.springframework.core.ParameterizedTypeReference
+import org.springframework.core.env.get
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.body
@@ -55,9 +56,12 @@ fun main(args: Array<String>) {
                 val builder = ref<RouteLocatorBuilder>()
                 builder
                         .routes {
+                            val authServiceUrl = env["services.auth-service.url"]
+                            val postServiceUrl = env["services.post-service.url"]
+
                             route {
                                 path("/user")
-                                uri("lb://auth-service/user")
+                                uri(authServiceUrl + "/user")
                             }
 
                             route {
@@ -67,7 +71,7 @@ fun main(args: Array<String>) {
                                 filters {
                                     filter(rl)
                                 }
-                                uri("lb://post-service/posts")
+                                uri(postServiceUrl + "/posts")
                             }
                         }
             }
@@ -78,11 +82,13 @@ fun main(args: Array<String>) {
                 router {
                     val client = ref<WebClient>()
 
+                    val favoriteServiceUrl = env["services.favorite-service.url"]
+                    val postServiceUrl = env["services.post-service.url"]
                     GET("/posts/{slug}/favorites") {
 
                         val favorites: Publisher<String> = client
                                 .get()
-                                .uri("http://favorite-service/posts/{slug}/favorites", it.pathVariable("slug"))
+                                .uri(favoriteServiceUrl + "/posts/{slug}/favorites", it.pathVariable("slug"))
                                 .retrieve()
                                 .bodyToFlux(ParameterizedTypeReference.forType(String::class.java))
 
@@ -97,21 +103,22 @@ fun main(args: Array<String>) {
                         ServerResponse.ok().body(cb)
                     }
 
+
                     GET("/user/favorites") {
 
                         val favorites: Publisher<FavoritedPost> = client
                                 .get()
-                                .uri("http://favorite-service/users/{username}/favorites", it.principal().block()?.name)
+                                .uri(favoriteServiceUrl +"/users/{username}/favorites", it.principal().block()?.name)
                                 .retrieve()
                                 .bodyToFlux(String::class.java)
                                 .flatMap {
-                                    client
+                                   slug -> client
                                             .get()
-                                            .uri("http://post-service/posts/{slug}/", it)
+                                            .uri(postServiceUrl +"/posts/{slug}/", it)
                                             .retrieve()
                                             .bodyToFlux(Post::class.java)
-                                            .map {
-                                                (_, title, slug, _, createdDate) -> FavoritedPost(title, slug, createdDate)
+                                            .map { (_, title, slug, _, createdDate) ->
+                                                FavoritedPost(title, slug, createdDate)
                                             }
                                 }
 

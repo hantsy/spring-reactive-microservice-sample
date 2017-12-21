@@ -8,9 +8,14 @@ services:
     build: 
       context: ./gateway
       dockerfile: Dockerfile
+    environment:
+      AUTH_SERVICE_URL=http://auth-service:8081
+      POST_SERVICE_URL=http://post-service:8082
+      FAVORITE_SERVICE_URL=http://favorite-service:8083
     depends_on:
       - auth-service
       - post-service
+      - favorite-service
     ports:
       - "80:80"
       
@@ -21,14 +26,15 @@ services:
       context: ./auth-service # specify the directory of the Dockerfile
       dockerfile: Dockerfile
     environment:
-      USERDB_URL: jdbc:mysql://userdb:3306/userdb
-      REDIS_HOST: redis
+      SPRING_DATA_CASSANDRA_CONTACT_POINTS: cassandra # Comma-separated list of cluster node addresses.
+      SPRING_DATA_CASSANDRA_KEYSPACE_NAME: mykeyspace # Keyspace name to use.
+      SPRING_REDIS_URL: redis://redis:6379
     ports:
-      - "8000:8000" #specify ports forewarding
+      - "8081:8081" #specify ports forewarding
     depends_on:
       - cassandra
       - redis
-  
+
   post-service: 
     image: hantsy/post-service
     container_name: post-service
@@ -36,14 +42,26 @@ services:
       context: ./post-service
       dockerfile: Dockerfile
     environment:
-      POSTDB_URL: jdbc:mysql://postdb:3306/postdb
-      REDIS_HOST: redis
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/posts
+      SPRING_REDIS_URL: redis://redis:6379
     ports:
-      - "8002:8002" #specify ports forewarding
+      - "8082:8082" #specify ports forewarding
     depends_on:
       - mongodb
       - redis
- 
-
+      
+  favorite-service:
+    image: hantsy/favorite-service
+    container_name: favorite-service
+    build: 
+      context: ./favorite-service # specify the directory of the Dockerfile
+      dockerfile: Dockerfile
+    environment:
+      SPRING_REDIS_URL: redis://redis:6379
+    ports:
+      - "8083:8083" #specify ports forewarding
+    depends_on:
+      - redis    
+  
   
      
