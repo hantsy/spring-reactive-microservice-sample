@@ -74,48 +74,48 @@ public class AuthServiceApplication {
     @Bean
     SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
         return http
-                .csrf().disable()
-                .httpBasic().securityContextRepository(new WebSessionServerSecurityContextRepository())
-                .and()
-                .authorizeExchange()
-                .pathMatchers(HttpMethod.GET, "/users/exists").permitAll()
-                .pathMatchers(HttpMethod.GET, "/user").authenticated()
-                .pathMatchers("/users/{user}/**").access(this::currentUserMatchesPath)
-                .anyExchange().authenticated()
-                .and()
-                .build();
+            .csrf().disable()
+            .httpBasic().securityContextRepository(new WebSessionServerSecurityContextRepository())
+            .and()
+            .authorizeExchange()
+            .pathMatchers(HttpMethod.GET, "/users/exists").permitAll()
+            .pathMatchers(HttpMethod.GET, "/user").authenticated()
+            .pathMatchers("/users/{user}/**").access(this::currentUserMatchesPath)
+            .anyExchange().authenticated()
+            .and()
+            .build();
     }
 
     private Mono<AuthorizationDecision> currentUserMatchesPath(Mono<Authentication> authentication, AuthorizationContext context) {
         return authentication
-                .map((a) -> context.getVariables().get("user").equals(a.getName()))
-                .map(AuthorizationDecision::new);
+            .map((a) -> context.getVariables().get("user").equals(a.getName()))
+            .map(AuthorizationDecision::new);
     }
 
     @Bean
     public ReactiveUserDetailsService userDetailsRepository(UserRepository users) {
         return (username) -> users
-                .findByUsername(username)
-                .map(user -> org.springframework.security.core.userdetails.User
-                        .withUsername(user.getUsername())
-                        .password(user.getPassword())
-                        .authorities(user.getRoles().toArray(new String[user.getRoles().size()]))
-                        .disabled(!user.isActive())
-                        .accountLocked(!user.isActive())
-                        .credentialsExpired(!user.isActive())
-                        .accountExpired(!user.isActive())
-                        .accountExpired(!user.isActive())
-                        .build()
+            .findByUsername(username)
+            .map(user -> org.springframework.security.core.userdetails.User
+                .withUsername(user.getUsername())
+                .password(user.getPassword())
+                .roles(user.getRoles().toArray(new String[user.getRoles().size()]))
+                .disabled(!user.isActive())
+                .accountLocked(!user.isActive())
+                .credentialsExpired(!user.isActive())
+                .accountExpired(!user.isActive())
+                .accountExpired(!user.isActive())
+                .build()
 
-                );
-                //.cast(UserDetails.class);
+            );
+        //.cast(UserDetails.class);
     }
 
     @Bean
     public RouterFunction<ServerResponse> routes(
-            UserHandler userHandler) {
+        UserHandler userHandler) {
         return route(GET("/user"), userHandler::current)
-                .andRoute(GET("/users/exists"), userHandler::exists);
+            .andRoute(GET("/users/exists"), userHandler::exists);
     }
 }
 
@@ -132,8 +132,8 @@ class CassandraConfig extends AbstractReactiveCassandraConfiguration {
     protected List<CreateKeyspaceSpecification> getKeyspaceCreations() {
 
         CreateKeyspaceSpecification specification = CreateKeyspaceSpecification.createKeyspace(keySpace)
-                .ifNotExists()
-                .with(KeyspaceOption.DURABLE_WRITES, true);
+            .ifNotExists()
+            .with(KeyspaceOption.DURABLE_WRITES, true);
         //.withNetworkReplication(DataCenterReplication.dcr("foo", 1), DataCenterReplication.dcr("bar", 2));
 
         return Arrays.asList(specification);
@@ -173,35 +173,35 @@ class UserHandler {
 
     public Mono<ServerResponse> current(ServerRequest req) {
         return req.principal()
-                .cast(UsernamePasswordAuthenticationToken.class)
-                .map(u -> u.getPrincipal())
-                .cast(UserDetails.class)
-                .map(
-                        user -> {
-                            Map<Object, Object> map = new HashMap<>();
-                            map.put("username", user.getUsername());
-                            map.put("roles", AuthorityUtils.authorityListToSet(user.getAuthorities()));
-                            return map;
-                        }
-                )
-                .flatMap((user) -> ok().body(BodyInserters.fromObject(user)));
+            .cast(UsernamePasswordAuthenticationToken.class)
+            .map(u -> u.getPrincipal())
+            .cast(UserDetails.class)
+            .map(
+                user -> {
+                    Map<Object, Object> map = new HashMap<>();
+                    map.put("username", user.getUsername());
+                    map.put("roles", AuthorityUtils.authorityListToSet(user.getAuthorities()));
+                    return map;
+                }
+            )
+            .flatMap((user) -> ok().body(BodyInserters.fromObject(user)));
     }
 
     public Mono<ServerResponse> exists(ServerRequest req) {
 
         Mono<ServerResponse> emailExists = Mono.justOrEmpty(req.queryParam("email"))
-                .flatMap(email -> this.users.findByEmail(email)
-                        .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
-                        .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
-                )
-                .switchIfEmpty(badRequest().syncBody(Collections.singletonMap("error", "request param username or email is required.")));
+            .flatMap(email -> this.users.findByEmail(email)
+                .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
+                .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
+            )
+            .switchIfEmpty(badRequest().syncBody(Collections.singletonMap("error", "request param username or email is required.")));
 
         return Mono.justOrEmpty(req.queryParam("username"))
-                .flatMap(name -> this.users.findByUsername(name)
-                        .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
-                        .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
-                )
-                .switchIfEmpty(emailExists);
+            .flatMap(name -> this.users.findByUsername(name)
+                .flatMap(user -> ok().syncBody(Collections.singletonMap("exists", true)))
+                .switchIfEmpty(ok().syncBody(Collections.singletonMap("exists", false)))
+            )
+            .switchIfEmpty(emailExists);
     }
 }
 
@@ -221,27 +221,27 @@ class DataInitializer {
     private void init() {
         log.info("start users initialization  ...");
         this.users
-                .deleteAll()
-                .thenMany(
-                        Flux
-                                .just("user", "admin")
-                                .flatMap(
-                                        username -> {
-                                            List<String> roles = "user".equals(username)
-                                                    ? Arrays.asList("USER")
-                                                    : Arrays.asList("USER", "ADMIN");
+            .deleteAll()
+            .thenMany(
+                Flux
+                    .just("user", "admin")
+                    .flatMap(
+                        username -> {
+                            List<String> roles = "user".equals(username)
+                                ? Arrays.asList("USER")
+                                : Arrays.asList("USER", "ADMIN");
 
-                                            User user = User.builder().roles(roles).email(username + "@example.com").username(username).password(this.passwordEncoder.encode("password")).build();
-                                            return this.users.save(user);
-                                        }
-                                )
-                )
-                .log()
-                .subscribe(
-                        null,
-                        null,
-                        () -> log.info("done users initialization...")
-                );
+                            User user = User.builder().roles(roles).email(username + "@example.com").username(username).password(this.passwordEncoder.encode("password")).build();
+                            return this.users.save(user);
+                        }
+                    )
+            )
+            .log()
+            .subscribe(
+                null,
+                null,
+                () -> log.info("done users initialization...")
+            );
     }
 
 }

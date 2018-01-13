@@ -29,7 +29,7 @@ import static org.springframework.web.reactive.function.client.ExchangeFilterFun
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @Slf4j
-public class DemoApplicationTests {
+public class PostServiceApplicationTests {
 
     @Autowired
     RouterFunction<?> routerFunction;
