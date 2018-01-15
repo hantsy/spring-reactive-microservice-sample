@@ -4,11 +4,18 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.isomorphism.util.TokenBucket;
+import org.isomorphism.util.TokenBuckets;
 import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
 import org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerExchangeFilterFunction;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -16,22 +23,34 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.cloud.netflix.hystrix.HystrixCommands;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.stereotype.Component;
+import org.springframework.tuple.Tuple;
+import org.springframework.util.Assert;
+import org.springframework.web.reactive.function.client.*;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
+import static org.springframework.cloud.netflix.hystrix.HystrixCommands.from;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 @SpringBootApplication
+@Slf4j
 public class GatewayApplication {
 
     @Value("${services.auth-service.url}")
@@ -45,6 +64,7 @@ public class GatewayApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);
+
     }
 
     @Bean
@@ -57,41 +77,71 @@ public class GatewayApplication {
     @Bean
     SecurityWebFilterChain authorization(ServerHttpSecurity security) {
         return security
-            .authorizeExchange().pathMatchers("/rl").authenticated()
+            .authorizeExchange().pathMatchers("/user/**").authenticated()
             .anyExchange().permitAll()
             .and()
             .httpBasic()
             .and()
+            .csrf().disable()
+            .build();
+    }
+//
+//    @Bean
+//    WebClient client(LoadBalancerExchangeFilterFunction lb) {
+//        return WebClient.builder()
+//            .filter(lb)
+//            .build();
+//    }
+
+    @Bean
+    WebClient client() {
+        return WebClient.builder()
+            .filter(new CopyRequestExchangeFilterFunction())
             .build();
     }
 
     @Bean
-    WebClient client(LoadBalancerExchangeFilterFunction lb) {
-        return WebClient.builder().filter(lb).build();
-    }
-
-    @Bean
     RouterFunction<ServerResponse> routes(WebClient webClient) {
+        log.debug("authServiceUrl:{}", this.authServiceUrl);
+        log.debug("postServiceUrl:{}", this.postServiceUrl);
+        log.debug("favoriteServiceUrl:{}", this.favoriteServiceUrl);
+
         return route(
+            GET("/posts/{slug}/favorited"),
+            (req) -> {
+                Flux<Map> favorites = webClient
+                    .get()
+                    .uri(favoriteServiceUrl + "/posts/{slug}/favorited", req.pathVariable("slug"))
+                    .retrieve()
+                    .bodyToFlux(Map.class);
+
+                Publisher<Map> cb = from(favorites)
+                    .commandName("posts-favorites")
+                    .fallback(Flux.just(Collections.singletonMap("favorited", false)))
+                    .eager()
+                    .build();
+
+                return ok().body(favorites, Map.class);
+            }
+        ).andRoute(
             GET("/posts/{slug}/favorites"),
             (req) -> {
                 Flux<String> favorites = webClient
                     .get()
                     .uri(favoriteServiceUrl + "/posts/{slug}/favorites", req.pathVariable("slug"))
                     .retrieve()
-                    .bodyToFlux(ParameterizedTypeReference.forType(String.class));
+                    .bodyToFlux(String.class);
 
-                Publisher<String> cb = HystrixCommands
-                    .from(favorites)
+                Publisher<String> cb = from(favorites)
                     .commandName("posts-favorites")
-                    .fallback(Flux.just("loading favorited users errors!!"))
+                    .fallback(Flux.just("loading favorited users failed!"))
                     .eager()
                     .build();
 
                 return ok().body(cb, String.class);
             }
         ).andRoute(
-            GET("/users/{username}/favorites"),
+            GET("/user/favorites"),
             (req) -> {
                 Flux<FavoritedPost> favorites = webClient
                     .get()
@@ -110,7 +160,7 @@ public class GatewayApplication {
                 Publisher<FavoritedPost> cb = HystrixCommands
                     .from(favorites)
                     .commandName("posts-favorites")
-                    .fallback(Flux.just(new FavoritedPost("Loading faviroted posts error", "not_loaded", LocalDateTime.now())))
+                    .fallback(Flux.just(new FavoritedPost("Loading favorited posts failed", "not_loaded", LocalDateTime.now())))
                     .eager()
                     .build();
 
@@ -120,14 +170,29 @@ public class GatewayApplication {
     }
 
     @Bean
-    RouteLocator gatewayRoutes(RequestRateLimiterGatewayFilterFactory rl, RouteLocatorBuilder locator) {
+    @Order(-1)
+    RouteLocator gatewayRoutes(RequestRateLimiterGatewayFilterFactory rl,
+                               ThrottleGatewayFilterFactory throttle,
+                               RouteLocatorBuilder locator) {
         return locator.routes()
             .route("user", predicate -> predicate.path("/user")
                 .uri(authServiceUrl)
             )
 
-            .route("posts", predicate -> predicate.path("/posts")
-                .filter(rl.apply(RedisRateLimiter.args(2, 4)))
+            .route("users", predicate -> predicate.path("/users/**")
+                .uri(authServiceUrl)
+            )
+
+            .route("favorites", predicate -> predicate.path("/posts/*/favorites")
+                .uri(favoriteServiceUrl)
+            )
+
+            .route("posts", predicate -> predicate.path("/posts/**")
+//                .filter(throttle.apply(1,
+//                    1,
+//                    10,
+//                    TimeUnit.SECONDS))
+//                .filter(rl.apply(RedisRateLimiter.args(2, 4)))
                 .uri(postServiceUrl)
             )
             .build();
@@ -188,4 +253,57 @@ class FavoritedPost {
     private String slug;
     private String title;
     private LocalDateTime createdDate;
+}
+
+/**
+ * Sample throttling filter.
+ * See https://github.com/bbeck/token-bucket
+ */
+@Slf4j
+@Component
+class ThrottleGatewayFilterFactory implements GatewayFilterFactory {
+
+    @Override
+    public GatewayFilter apply(Tuple args) {
+        int capacity = args.getInt("capacity");
+        int refillTokens = args.getInt("refillTokens");
+        int refillPeriod = args.getInt("refillPeriod");
+        TimeUnit refillUnit = TimeUnit.valueOf(args.getString("refillUnit"));
+        return apply(capacity, refillTokens, refillPeriod, refillUnit);
+    }
+
+    public GatewayFilter apply(int capacity, int refillTokens, int refillPeriod, TimeUnit refillUnit) {
+
+        final TokenBucket tokenBucket = TokenBuckets.builder()
+            .withCapacity(capacity)
+            .withFixedIntervalRefillStrategy(refillTokens, refillPeriod, refillUnit)
+            .build();
+
+        return (exchange, chain) -> {
+            //TODO: get a token bucket for a key
+            log.debug("TokenBucket capacity: " + tokenBucket.getCapacity());
+            boolean consumed = tokenBucket.tryConsume();
+            if (consumed) {
+                return chain.filter(exchange);
+            }
+            exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+            return exchange.getResponse().setComplete();
+        };
+    }
+}
+
+@Slf4j
+class CopyRequestExchangeFilterFunction implements ExchangeFilterFunction {
+
+    public CopyRequestExchangeFilterFunction() {
+    }
+
+    @Override
+    public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
+        ClientRequest newRequest = ClientRequest.from(request).build();
+        log.debug("client request header X-AUTH-TOKEN: {}",  newRequest.headers().get("X-AUTH-TOKEN"));
+
+        return next.exchange(newRequest);
+    }
+
 }

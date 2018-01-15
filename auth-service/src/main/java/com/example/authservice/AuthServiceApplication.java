@@ -99,16 +99,14 @@ public class AuthServiceApplication {
             .map(user -> org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
-                .roles(user.getRoles().toArray(new String[user.getRoles().size()]))
+                .roles(user.getRoles().toArray(new String[0]))
                 .disabled(!user.isActive())
                 .accountLocked(!user.isActive())
                 .credentialsExpired(!user.isActive())
                 .accountExpired(!user.isActive())
-                .accountExpired(!user.isActive())
                 .build()
 
             );
-        //.cast(UserDetails.class);
     }
 
     @Bean
