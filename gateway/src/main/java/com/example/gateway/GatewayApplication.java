@@ -30,9 +30,12 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
 import org.springframework.tuple.Tuple;
 import org.springframework.util.Assert;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.reactive.function.client.*;
 import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.result.view.RequestContext;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
@@ -96,7 +99,6 @@ public class GatewayApplication {
     @Bean
     WebClient client() {
         return WebClient.builder()
-            .filter(new CopyRequestExchangeFilterFunction())
             .build();
     }
 
@@ -110,6 +112,7 @@ public class GatewayApplication {
             GET("/posts/{slug}/favorited"),
             (req) -> {
                 Flux<Map> favorites = webClient
+                    .mutate().filter(new CopyRequestExchangeFilterFunction(req)).build()
                     .get()
                     .uri(favoriteServiceUrl + "/posts/{slug}/favorited", req.pathVariable("slug"))
                     .retrieve()
@@ -144,6 +147,7 @@ public class GatewayApplication {
             GET("/user/favorites"),
             (req) -> {
                 Flux<FavoritedPost> favorites = webClient
+                    .mutate().filter(new CopyRequestExchangeFilterFunction(req)).build()
                     .get()
                     .uri(favoriteServiceUrl + "/users/{username}/favorites", req.principal().block().getName())
                     .retrieve()
@@ -193,7 +197,7 @@ public class GatewayApplication {
 //                    10,
 //                    TimeUnit.SECONDS))
 //                .filter(rl.apply(RedisRateLimiter.args(2, 4)))
-                .uri(postServiceUrl)
+                    .uri(postServiceUrl)
             )
             .build();
     }
@@ -295,13 +299,23 @@ class ThrottleGatewayFilterFactory implements GatewayFilterFactory {
 @Slf4j
 class CopyRequestExchangeFilterFunction implements ExchangeFilterFunction {
 
-    public CopyRequestExchangeFilterFunction() {
+    private ServerRequest request;
+
+    public CopyRequestExchangeFilterFunction(ServerRequest request) {
+        this.request = request;
     }
 
     @Override
-    public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
-        ClientRequest newRequest = ClientRequest.from(request).build();
-        log.debug("client request header X-AUTH-TOKEN: {}",  newRequest.headers().get("X-AUTH-TOKEN"));
+    public Mono<ClientResponse> filter(ClientRequest clientRequest, ExchangeFunction next) {
+
+        ClientRequest newRequest = ClientRequest.from(clientRequest).build();
+        if (this.request.headers().asHttpHeaders().containsKey("X-AUTH-TOKEN")) {
+            newRequest.headers().add(
+                "X-AUTH-TOKEN",
+                this.request.headers().asHttpHeaders().getFirst("X-AUTH-TOKEN")
+            );
+        }
+        log.debug("client request header X-AUTH-TOKEN: {}", newRequest.headers().get("X-AUTH-TOKEN"));
 
         return next.exchange(newRequest);
     }
