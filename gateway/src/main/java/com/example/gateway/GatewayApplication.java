@@ -30,9 +30,11 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
 import org.springframework.tuple.Tuple;
 import org.springframework.util.Assert;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.reactive.function.client.*;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.result.view.RequestContext;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
@@ -300,6 +302,7 @@ class CopyRequestExchangeFilterFunction implements ExchangeFilterFunction {
 
     @Override
     public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
+
         ClientRequest newRequest = ClientRequest.from(request).build();
         log.debug("client request header X-AUTH-TOKEN: {}",  newRequest.headers().get("X-AUTH-TOKEN"));
 
