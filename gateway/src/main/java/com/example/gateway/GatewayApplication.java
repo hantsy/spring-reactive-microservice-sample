@@ -11,37 +11,28 @@ import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.client.ServiceInstance;
-import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
-import org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerExchangeFilterFunction;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory;
-import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.cloud.netflix.hystrix.HystrixCommands;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
 import org.springframework.tuple.Tuple;
-import org.springframework.util.Assert;
-import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.reactive.function.client.*;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import org.springframework.web.reactive.result.view.RequestContext;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Map;
@@ -83,8 +74,7 @@ public class GatewayApplication {
             .authorizeExchange().pathMatchers("/user/**").authenticated()
             .anyExchange().permitAll()
             .and()
-            .httpBasic()
-            .and()
+            .httpBasic().disable()
             .csrf().disable()
             .build();
     }
@@ -112,7 +102,7 @@ public class GatewayApplication {
             GET("/posts/{slug}/favorited"),
             (req) -> {
                 Flux<Map> favorites = webClient
-                    .mutate().filter(new CopyRequestExchangeFilterFunction(req)).build()
+                    .mutate().filter(new CopyRequestAuthTokenHeaderExchangeFilterFunction(req)).build()
                     .get()
                     .uri(favoriteServiceUrl + "/posts/{slug}/favorited", req.pathVariable("slug"))
                     .retrieve()
@@ -146,20 +136,24 @@ public class GatewayApplication {
         ).andRoute(
             GET("/user/favorites"),
             (req) -> {
-                Flux<FavoritedPost> favorites = webClient
-                    .mutate().filter(new CopyRequestExchangeFilterFunction(req)).build()
-                    .get()
-                    .uri(favoriteServiceUrl + "/users/{username}/favorites", req.principal().block().getName())
-                    .retrieve()
-                    .bodyToFlux(String.class)
-                    .flatMap(
-                        slug -> webClient
+                Flux<FavoritedPost> favorites = req.principal()
+                    .flatMapMany(
+                        p -> webClient
+                            .mutate().filter(new CopyRequestAuthTokenHeaderExchangeFilterFunction(req)).build()
                             .get()
-                            .uri(postServiceUrl + "/posts/{slug}/", slug)
+                            .uri(favoriteServiceUrl + "/users/{username}/favorites", p.getName())
                             .retrieve()
-                            .bodyToMono(Post.class)
-                            .map(p -> new FavoritedPost(p.getTitle(), slug, p.getCreatedDate()))
+                            .bodyToFlux(String.class)
+                            .flatMap(
+                                slug -> webClient
+                                    .get()
+                                    .uri(postServiceUrl + "/posts/{slug}/", slug)
+                                    .retrieve()
+                                    .bodyToMono(Post.class)
+                                    .map(post -> new FavoritedPost(post.getTitle(), slug, post.getCreatedDate()))
+                            )
                     );
+
 
                 Publisher<FavoritedPost> cb = HystrixCommands
                     .from(favorites)
@@ -179,7 +173,7 @@ public class GatewayApplication {
                                ThrottleGatewayFilterFactory throttle,
                                RouteLocatorBuilder locator) {
         return locator.routes()
-            .route("user", predicate -> predicate.path("/user")
+            .route("session", predicate -> predicate.path("/session")
                 .uri(authServiceUrl)
             )
 
@@ -297,11 +291,11 @@ class ThrottleGatewayFilterFactory implements GatewayFilterFactory {
 }
 
 @Slf4j
-class CopyRequestExchangeFilterFunction implements ExchangeFilterFunction {
+class CopyRequestAuthTokenHeaderExchangeFilterFunction implements ExchangeFilterFunction {
 
     private ServerRequest request;
 
-    public CopyRequestExchangeFilterFunction(ServerRequest request) {
+    public CopyRequestAuthTokenHeaderExchangeFilterFunction(ServerRequest request) {
         this.request = request;
     }
 

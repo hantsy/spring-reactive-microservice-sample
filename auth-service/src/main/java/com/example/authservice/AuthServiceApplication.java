@@ -38,6 +38,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.server.WebSession;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
@@ -46,9 +47,11 @@ import reactor.core.publisher.Mono;
 import java.util.*;
 
 import static java.util.stream.Collectors.toList;
+import static org.springframework.web.reactive.function.server.RequestPredicates.DELETE;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.badRequest;
+import static org.springframework.web.reactive.function.server.ServerResponse.noContent;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 
@@ -79,7 +82,7 @@ public class AuthServiceApplication {
             .and()
             .authorizeExchange()
             .pathMatchers(HttpMethod.GET, "/users/exists").permitAll()
-            .pathMatchers(HttpMethod.GET, "/user").authenticated()
+            .pathMatchers("/session").authenticated()
             .pathMatchers("/users/{user}/**").access(this::currentUserMatchesPath)
             .anyExchange().authenticated()
             .and()
@@ -112,7 +115,8 @@ public class AuthServiceApplication {
     @Bean
     public RouterFunction<ServerResponse> routes(
         UserHandler userHandler) {
-        return route(GET("/user"), userHandler::current)
+        return route(GET("/session"), userHandler::current)
+            .andRoute(DELETE("/session"), userHandler::logout)
             .andRoute(GET("/users/exists"), userHandler::exists);
     }
 }
@@ -183,6 +187,12 @@ class UserHandler {
                 }
             )
             .flatMap((user) -> ok().body(BodyInserters.fromObject(user)));
+    }
+
+    public Mono<ServerResponse> logout(ServerRequest req) {
+        return req.session()
+            .flatMap(WebSession::invalidate)
+            .flatMap(v-> noContent().build());
     }
 
     public Mono<ServerResponse> exists(ServerRequest req) {

@@ -62,6 +62,7 @@
         </dependency>
 
         <!-- spring Security & Spring Session-->
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
@@ -70,6 +71,7 @@
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-data-redis</artifactId>
         </dependency>
+
 
 
         <!-- Discovery Client & Config  Client -->
