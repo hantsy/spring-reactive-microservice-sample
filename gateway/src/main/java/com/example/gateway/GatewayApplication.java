@@ -19,6 +19,7 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.cloud.netflix.hystrix.HystrixCommands;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -181,7 +182,9 @@ public class GatewayApplication {
                 .uri(authServiceUrl)
             )
 
-            .route("favorites", predicate -> predicate.path("/posts/*/favorites")
+            .route("favorites", predicate -> predicate
+                .method(HttpMethod.POST).or().method(HttpMethod.DELETE).and().path("/posts/*/favorites")
+                //.or().method(HttpMethod.GET).and().path("/posts/*/favorites/**")
                 .uri(favoriteServiceUrl)
             )
 

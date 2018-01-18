@@ -9,15 +9,15 @@ services:
       context: ./gateway
       dockerfile: Dockerfile
     environment:
-      AUTH_SERVICE_URL=http://auth-service:8081
-      POST_SERVICE_URL=http://post-service:8082
-      FAVORITE_SERVICE_URL=http://favorite-service:8083
+      AUTH_SERVICE_URL: http://auth-service:8081
+      POST_SERVICE_URL: http://post-service:8082
+      FAVORITE_SERVICE_URL: http://favorite-service:8083
     depends_on:
       - auth-service
       - post-service
       - favorite-service
     ports:
-      - "80:80"
+      - "8000:8000"
       
   auth-service:
     image: hantsy/auth-service
@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile
     environment:
       SPRING_DATA_CASSANDRA_CONTACT_POINTS: cassandra # Comma-separated list of cluster node addresses.
-      SPRING_DATA_CASSANDRA_KEYSPACE_NAME: mykeyspace # Keyspace name to use.
+      SPRING_DATA_CASSANDRA_KEYSPACE_NAME: demo # Keyspace name to use.
       SPRING_REDIS_URL: redis://redis:6379
     ports:
       - "8081:8081" #specify ports forewarding
