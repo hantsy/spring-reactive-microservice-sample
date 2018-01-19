@@ -105,7 +105,20 @@
             </plugin>
         </plugins>
     </build>
-
+    <profiles>
+        <profile>
+            <id>docker</id>
+            <!-- https://stackoverflow.com/questions/41804297/what-docker-base-image-from-for-java-spring-boot -->
+            <dependencies>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-epoll</artifactId>
+                    <version>4.1.17.Final</version>
+                    <classifier>linux-x86_64</classifier>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
     <repositories>
         <repository>
             <id>spring-snapshots</id>
