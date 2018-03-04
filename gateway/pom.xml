@@ -21,9 +21,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <java.version>1.8</java.version>
-        <spring-cloud.version>Finchley.M7</spring-cloud.version>
-        <spring-session.version>2.0.0.RELEASE</spring-session.version>
+		<spring-cloud.version>Finchley.M8</spring-cloud.version>
+		<java.version>1.8</java.version>
     </properties>
 
     <dependencies>
