@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -19,16 +20,18 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.cloud.netflix.hystrix.HystrixCommands;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
+import org.springframework.data.redis.connection.RedisZSetCommands;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
-import org.springframework.tuple.Tuple;
+
 import org.springframework.web.reactive.function.client.*;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
@@ -171,7 +174,7 @@ public class GatewayApplication {
     @Bean
     @Order(-1)
     RouteLocator gatewayRoutes(RequestRateLimiterGatewayFilterFactory rl,
-                               ThrottleGatewayFilterFactory throttle,
+                               ThrottleGatewayFilter throttle,
                                RouteLocatorBuilder locator) {
         return locator.routes()
             .route("session", predicate -> predicate.path("/session")
@@ -257,39 +260,71 @@ class FavoritedPost {
 }
 
 /**
+ * https://github.com/spring-cloud/spring-cloud-gateway/blob/master/spring-cloud-gateway-sample/src/main/java/org/springframework/cloud/gateway/sample/ThrottleGatewayFilter.java
  * Sample throttling filter.
  * See https://github.com/bbeck/token-bucket
  */
 @Slf4j
 @Component
-class ThrottleGatewayFilterFactory implements GatewayFilterFactory {
+class ThrottleGatewayFilter implements GatewayFilter {
 
-    @Override
-    public GatewayFilter apply(Tuple args) {
-        int capacity = args.getInt("capacity");
-        int refillTokens = args.getInt("refillTokens");
-        int refillPeriod = args.getInt("refillPeriod");
-        TimeUnit refillUnit = TimeUnit.valueOf(args.getString("refillUnit"));
-        return apply(capacity, refillTokens, refillPeriod, refillUnit);
+    int capacity;
+    int refillTokens;
+    int refillPeriod;
+    TimeUnit refillUnit;
+
+    public int getCapacity() {
+        return capacity;
     }
 
-    public GatewayFilter apply(int capacity, int refillTokens, int refillPeriod, TimeUnit refillUnit) {
+    public ThrottleGatewayFilter setCapacity(int capacity) {
+        this.capacity = capacity;
+        return this;
+    }
 
-        final TokenBucket tokenBucket = TokenBuckets.builder()
+    public int getRefillTokens() {
+        return refillTokens;
+    }
+
+    public ThrottleGatewayFilter setRefillTokens(int refillTokens) {
+        this.refillTokens = refillTokens;
+        return this;
+    }
+
+    public int getRefillPeriod() {
+        return refillPeriod;
+    }
+
+    public ThrottleGatewayFilter setRefillPeriod(int refillPeriod) {
+        this.refillPeriod = refillPeriod;
+        return this;
+    }
+
+    public TimeUnit getRefillUnit() {
+        return refillUnit;
+    }
+
+    public ThrottleGatewayFilter setRefillUnit(TimeUnit refillUnit) {
+        this.refillUnit = refillUnit;
+        return this;
+    }
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+
+        TokenBucket tokenBucket = TokenBuckets.builder()
             .withCapacity(capacity)
             .withFixedIntervalRefillStrategy(refillTokens, refillPeriod, refillUnit)
             .build();
 
-        return (exchange, chain) -> {
-            //TODO: get a token bucket for a key
-            log.debug("TokenBucket capacity: " + tokenBucket.getCapacity());
-            boolean consumed = tokenBucket.tryConsume();
-            if (consumed) {
-                return chain.filter(exchange);
-            }
-            exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-            return exchange.getResponse().setComplete();
-        };
+        //TODO: get a token bucket for a key
+        log.debug("TokenBucket capacity: " + tokenBucket.getCapacity());
+        boolean consumed = tokenBucket.tryConsume();
+        if (consumed) {
+            return chain.filter(exchange);
+        }
+        exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+        return exchange.getResponse().setComplete();
     }
 }
 

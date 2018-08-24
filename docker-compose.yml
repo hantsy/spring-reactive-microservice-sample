@@ -7,6 +7,7 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+  # https://github.com/docker-library/cassandra/issues/104#issuecomment-383211480    
   cassandra:
     image: cassandra
     ports:
