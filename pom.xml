@@ -10,6 +10,7 @@
     <description>Reactive Microservice demo by the new Spring 5 Reactive feature</description> 
 
     <modules>
+        <module>eureka-server</module>
         <module>gateway</module>
         <module>auth-service</module>
         <module>post-service</module>

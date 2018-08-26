@@ -5,8 +5,8 @@ services:
   rabbitmq:
     image: rabbitmq:management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+    - "5672:5672"
+    - "15672:15672"
   # https://github.com/docker-library/cassandra/issues/104#issuecomment-383211480    
   cassandra:
     image: cassandra
@@ -17,28 +17,31 @@ services:
     # 9042: CQL
     # 9160: thrift service
     - "9042:9042"
+#    environment:
+#      CASSANDRA_KEYSPACE: demo
     volumes:
     - cassandradata:/var/lib/cassandra
-    - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
-    
+    #- ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    # command: /cassandra-init.sh
+
   redis:
     image: redis
     ports:
-      - "6379:6379"
-      
-  mongodb: 
-    image: mongo 
+    - "6379:6379"
+
+  mongodb:
+    image: mongo
     volumes:
-      - mongodata:/data/db
+    - mongodata:/data/db
     ports:
-      - "27017:27017"
+    - "27017:27017"
     command: --smallfiles #--rest
 #   command: --smallfiles --rest --auth  // if there is a password set in mongo.
 
 volumes:
-  mongodata:  
+  mongodata:
 #    driver: local-persist
 #    driver_opts:
-#      mountpoint: ./data  
+#      mountpoint: ./data/mongodb
   cassandradata: 
        

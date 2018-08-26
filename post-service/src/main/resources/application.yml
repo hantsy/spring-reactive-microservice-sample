@@ -2,8 +2,8 @@ server:
   port: 8082
 
 spring:
-  session:
-    store-type: redis
+  application:
+    name: post-service
 
 logging:
   level:

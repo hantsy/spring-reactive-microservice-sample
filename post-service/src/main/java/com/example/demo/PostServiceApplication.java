@@ -3,6 +3,7 @@ package com.example.demo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.mongodb.config.EnableMongoAuditing;
@@ -29,6 +30,7 @@ import org.springframework.web.server.session.WebSessionIdResolver;
 
 @SpringBootApplication
 @EnableMongoAuditing
+@EnableDiscoveryClient
 @Slf4j
 public class PostServiceApplication {
 

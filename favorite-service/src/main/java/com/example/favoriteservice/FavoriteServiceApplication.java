@@ -3,6 +3,7 @@ package com.example.favoriteservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.ReactiveRedisConnection;
@@ -29,6 +30,7 @@ import static org.springframework.web.reactive.function.server.ServerResponse.no
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 @SpringBootApplication
+@EnableDiscoveryClient
 public class FavoriteServiceApplication {
 
     public static void main(String[] args) {

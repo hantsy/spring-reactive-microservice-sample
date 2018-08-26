@@ -1,9 +1,6 @@
 package com.example.gateway;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.isomorphism.util.TokenBucket;
 import org.isomorphism.util.TokenBuckets;
@@ -11,27 +8,30 @@ import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.circuitbreaker.EnableCircuitBreaker;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerExchangeFilterFunction;
+import org.springframework.cloud.gateway.discovery.DiscoveryClientRouteDefinitionLocator;
+import org.springframework.cloud.gateway.discovery.DiscoveryLocatorProperties;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory;
+import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.cloud.netflix.hystrix.HystrixCommands;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
-import org.springframework.data.redis.connection.RedisZSetCommands;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
-
 import org.springframework.web.reactive.function.client.*;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.session.HeaderWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Flux;
@@ -48,6 +48,8 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 @SpringBootApplication
+@EnableDiscoveryClient
+@EnableCircuitBreaker
 @Slf4j
 public class GatewayApplication {
 
@@ -64,6 +66,7 @@ public class GatewayApplication {
         SpringApplication.run(GatewayApplication.class, args);
 
     }
+
 
     @Bean
     WebSessionIdResolver webSessionIdResolver() {
@@ -82,17 +85,12 @@ public class GatewayApplication {
             .csrf().disable()
             .build();
     }
-//
-//    @Bean
-//    WebClient client(LoadBalancerExchangeFilterFunction lb) {
-//        return WebClient.builder()
-//            .filter(lb)
-//            .build();
-//    }
 
     @Bean
-    WebClient client() {
+    WebClient client(LoadBalancerExchangeFilterFunction lb, CopyRequestAuthTokenHeaderExchangeFilterFunction xtoken) {
         return WebClient.builder()
+            .filter(lb)
+            .filter(xtoken)
             .build();
     }
 
@@ -106,7 +104,7 @@ public class GatewayApplication {
             GET("/posts/{slug}/favorited"),
             (req) -> {
                 Flux<Map> favorites = webClient
-                    .mutate().filter(new CopyRequestAuthTokenHeaderExchangeFilterFunction(req)).build()
+                    //.mutate().filter(new CopyRequestAuthTokenHeaderExchangeFilterFunction(req)).build()
                     .get()
                     .uri(favoriteServiceUrl + "/posts/{slug}/favorited", req.pathVariable("slug"))
                     .retrieve()
@@ -143,7 +141,7 @@ public class GatewayApplication {
                 Flux<FavoritedPost> favorites = req.principal()
                     .flatMapMany(
                         p -> webClient
-                            .mutate().filter(new CopyRequestAuthTokenHeaderExchangeFilterFunction(req)).build()
+                           //.mutate().filter(new CopyRequestAuthTokenHeaderExchangeFilterFunction(req)).build()
                             .get()
                             .uri(favoriteServiceUrl + "/users/{username}/favorites", p.getName())
                             .retrieve()
@@ -174,7 +172,7 @@ public class GatewayApplication {
     @Bean
     @Order(-1)
     RouteLocator gatewayRoutes(RequestRateLimiterGatewayFilterFactory rl,
-                               ThrottleGatewayFilter throttle,
+                               ThrottleGatewayFilterFactory throttle,
                                RouteLocatorBuilder locator) {
         return locator.routes()
             .route("session", predicate -> predicate.path("/session")
@@ -186,54 +184,32 @@ public class GatewayApplication {
             )
 
             .route("favorites", predicate -> predicate
-                .method(HttpMethod.POST).or().method(HttpMethod.DELETE).and().path("/posts/*/favorites")
+                .method(HttpMethod.POST)
+                .or()
+                .method(HttpMethod.DELETE)
+                .and()
+                .path("/posts/*/favorites")
                 //.or().method(HttpMethod.GET).and().path("/posts/*/favorites/**")
                 .uri(favoriteServiceUrl)
             )
 
             .route("posts", predicate -> predicate.path("/posts/**")
-//                .filter(throttle.apply(1,
-//                    1,
-//                    10,
-//                    TimeUnit.SECONDS))
-//                .filter(rl.apply(RedisRateLimiter.args(2, 4)))
-                    .uri(postServiceUrl)
+                .filters(
+                    g -> g
+                        .filter(throttle.apply(ThrottleGatewayFilterFactory.Config.builder().capacity(1).refillPeriod(1).refillTokens(1).refillUnit(TimeUnit.MILLISECONDS).build()))
+                        .filter(rl.apply(new RequestRateLimiterGatewayFilterFactory.Config().setRateLimiter(new RedisRateLimiter(2, 4))))
+
+                )
+                .uri(postServiceUrl)
             )
             .build();
     }
 
     // spring.cloud.gateway.discovery.locator.enabled=true
-//    @Bean
-//    DiscoveryClientRouteDefinitionLocator discoveryRoutes(DiscoveryClient dc) {
-//        return new DiscoveryClientRouteDefinitionLocator(dc);
-//    }
-//
-//    @Bean
-//    RouteLocator gatewayRoutes(RequestRateLimiterGatewayFilterFactory rl, RouteLocatorBuilder locator) {
-//        return locator.routes()
-//                .route("test", predicate -> predicate.host("**.abc.org")
-//                        .and()
-//                        .path("/image/png")
-//                        .addResponseHeader("X-TestHeader", "foobar")
-//                        .uri("http://httpbin.org:80")
-//                )
-//
-//                .route("test2", predicate -> predicate.path("/image/webp")
-//                        .add(addResponseHeader("X-AnotherHeader", "baz"))
-//                        .uri("http://httpbin.org:80")
-//                )
-//                .route("test3", predicate -> predicate.host("**.throttle.org")
-//                        .and()
-//                        .path("/get")
-//                        .add(throttle.apply(tuple().of("capacity", 1,
-//                                "refillTokens", 1,
-//                                "refillPeriod", 10,
-//                                "refillUnit", "SECONDS")))
-//                        .uri("http://httpbin.org:80")
-//                )
-//                .order(-1)
-//                .build();
-//    }
+    @Bean
+    DiscoveryClientRouteDefinitionLocator discoveryRoutes(DiscoveryClient dc, DiscoveryLocatorProperties props) {
+        return new DiscoveryClientRouteDefinitionLocator(dc, props);
+    }
 
 }
 
@@ -266,85 +242,60 @@ class FavoritedPost {
  */
 @Slf4j
 @Component
-class ThrottleGatewayFilter implements GatewayFilter {
-
-    int capacity;
-    int refillTokens;
-    int refillPeriod;
-    TimeUnit refillUnit;
-
-    public int getCapacity() {
-        return capacity;
-    }
-
-    public ThrottleGatewayFilter setCapacity(int capacity) {
-        this.capacity = capacity;
-        return this;
-    }
-
-    public int getRefillTokens() {
-        return refillTokens;
-    }
-
-    public ThrottleGatewayFilter setRefillTokens(int refillTokens) {
-        this.refillTokens = refillTokens;
-        return this;
-    }
-
-    public int getRefillPeriod() {
-        return refillPeriod;
-    }
-
-    public ThrottleGatewayFilter setRefillPeriod(int refillPeriod) {
-        this.refillPeriod = refillPeriod;
-        return this;
-    }
-
-    public TimeUnit getRefillUnit() {
-        return refillUnit;
-    }
-
-    public ThrottleGatewayFilter setRefillUnit(TimeUnit refillUnit) {
-        this.refillUnit = refillUnit;
-        return this;
-    }
+class ThrottleGatewayFilterFactory extends AbstractGatewayFilterFactory<ThrottleGatewayFilterFactory.Config> {
+    int capacity = 1;
+    int refillTokens = 1;
+    int refillPeriod = 1;
+    TimeUnit refillUnit = TimeUnit.MILLISECONDS;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public GatewayFilter apply(Config config) {
+        int capacity = config.getCapacity() <= 0 ? this.capacity : config.getCapacity();
+        int refillTokens = config.getRefillTokens() <= 0 ? this.refillTokens : config.getRefillTokens();
+        int refillPeriod = config.getRefillPeriod() <= 0 ? this.refillPeriod : config.getRefillPeriod();
+        TimeUnit refillUnit = config.getRefillUnit() == null ? this.refillUnit : config.getRefillUnit();
 
-        TokenBucket tokenBucket = TokenBuckets.builder()
-            .withCapacity(capacity)
-            .withFixedIntervalRefillStrategy(refillTokens, refillPeriod, refillUnit)
-            .build();
+        return (exchange, chain) -> {
+            TokenBucket tokenBucket = TokenBuckets.builder()
+                .withCapacity(capacity)
+                .withFixedIntervalRefillStrategy(refillTokens, refillPeriod, refillUnit)
+                .build();
 
-        //TODO: get a token bucket for a key
-        log.debug("TokenBucket capacity: " + tokenBucket.getCapacity());
-        boolean consumed = tokenBucket.tryConsume();
-        if (consumed) {
-            return chain.filter(exchange);
-        }
-        exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-        return exchange.getResponse().setComplete();
+            //TODO: get a token bucket for a key
+            log.debug("TokenBucket capacity: " + tokenBucket.getCapacity());
+            boolean consumed = tokenBucket.tryConsume();
+            if (consumed) {
+                return chain.filter(exchange);
+            }
+            exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+            return exchange.getResponse().setComplete();
+        };
+    }
+
+    @Setter
+    @Getter
+    @Builder
+    public static class Config {
+        int capacity;
+        int refillTokens;
+        int refillPeriod;
+        TimeUnit refillUnit;
     }
 }
 
 @Slf4j
+@Component
 class CopyRequestAuthTokenHeaderExchangeFilterFunction implements ExchangeFilterFunction {
 
-    private ServerRequest request;
-
-    public CopyRequestAuthTokenHeaderExchangeFilterFunction(ServerRequest request) {
-        this.request = request;
-    }
 
     @Override
     public Mono<ClientResponse> filter(ClientRequest clientRequest, ExchangeFunction next) {
 
         ClientRequest newRequest = ClientRequest.from(clientRequest).build();
-        if (this.request.headers().asHttpHeaders().containsKey("X-AUTH-TOKEN")) {
+        if (clientRequest.headers().containsKey("X-AUTH-TOKEN")) {
             newRequest.headers().add(
                 "X-AUTH-TOKEN",
-                this.request.headers().asHttpHeaders().getFirst("X-AUTH-TOKEN")
+                clientRequest.headers().getFirst("X-AUTH-TOKEN")
             );
         }
         log.debug("client request header X-AUTH-TOKEN: {}", newRequest.headers().get("X-AUTH-TOKEN"));
