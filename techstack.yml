@@ -1,0 +1,382 @@
+repo_name: hantsy/spring-reactive-microservice-sample
+report_id: d76039e883856e1a15ec95d89a853114
+version: 0.1
+repo_type: Public
+timestamp: '2024-01-31T08:59:24+00:00'
+requested_by: hantsy
+provider: github
+branch: master
+detected_tools_count: 31
+tools:
+- name: Java
+  description: A concurrent, class-based, object-oriented, language specifically designed
+    to have as few implementation dependencies as possible
+  website_url: https://www.java.com
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/995/K85ZWV2F.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample
+  detection_source: Repo Metadata
+- name: Kotlin
+  description: Statically typed Programming Language targeting JVM and JavaScript
+  website_url: https://kotlinlang.org/
+  open_source: true
+  hosted_saas: true
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/3750/pCfEzr6L.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample
+  detection_source: Repo Metadata
+- name: Node.js
+  description: A platform built on Chrome's JavaScript runtime for easily building
+    fast, scalable network applications
+  website_url: http://nodejs.org/
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Frameworks (Full Stack)
+  image_url: https://img.stackshare.io/service/1011/n1JRsFeB_400x400.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/docker-compose.yml
+  detection_source: docker-compose.yml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-11 13:46:25.000000000 Z
+- name: Project Reactor
+  description: Library for building non-blocking applications on JVM
+  website_url: https://projectreactor.io/
+  open_source: false
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Java Tools
+  image_url: https://img.stackshare.io/service/5807/default_cbd8ab670309059d7e315252d307d409aa40d793.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-14 12:36:18.000000000 Z
+- name: Spring Cloud
+  description: Spring helps development teams everywhere build simple, portable,fast
+    and flexible JVM-based systems and applications.
+  website_url: https://spring.io/projects/spring-cloud
+  open_source: false
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Frameworks (Full Stack)
+  image_url: https://img.stackshare.io/service/5494/default_b403ef08976083aea6d4caf5a4f19f3325c751e5.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/gateway-kotlin/pom.xml
+  detection_source: gateway-kotlin/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-24 14:59:12.000000000 Z
+- name: Spring Framework
+  description: An application framework and inversion of control container for the
+    Java platform
+  website_url: https://spring.io/projects/spring-framework
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Frameworks (Full Stack)
+  image_url: https://img.stackshare.io/service/2006/spring-framework-project-logo.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: Cassandra
+  description: A partitioned row store. Rows are organized into tables with a required
+    primary key.
+  website_url: http://cassandra.apache.org/
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Data Stores
+  sub_category: Databases
+  image_url: https://img.stackshare.io/service/1032/cassandra_small.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/docker-compose.yml
+  detection_source: docker-compose.yml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: MongoDB
+  description: The database for giant ideas
+  website_url: http://www.mongodb.com/
+  open_source: true
+  hosted_saas: false
+  category: Data Stores
+  sub_category: Databases
+  image_url: https://img.stackshare.io/service/1030/leaf-360x360.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/docker-compose.yml
+  detection_source: docker-compose.yml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: RabbitMQ
+  description: Open source multiprotocol messaging broker
+  website_url: http://www.rabbitmq.com/
+  open_source: true
+  hosted_saas: false
+  category: Data Stores
+  sub_category: Message Queue
+  image_url: https://img.stackshare.io/service/1061/default_df93e9a30d27519161b39d8c1d5c223c1642d187.jpg
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/docker-compose.yml
+  detection_source: docker-compose.yml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-21 14:28:46.000000000 Z
+- name: Redis
+  description: Open source (BSD licensed), in-memory data structure store
+  website_url: http://redis.io/
+  license: BSD-3-Clause
+  open_source: true
+  hosted_saas: false
+  category: Data Stores
+  sub_category: In-Memory Databases
+  image_url: https://img.stackshare.io/service/1031/default_cbce472cd134adc6688572f999e9122b9657d4ba.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-14 12:36:18.000000000 Z
+- name: Docker
+  description: Enterprise Container Platform for High-Velocity Innovation.
+  website_url: https://www.docker.com/
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Virtual Machine Platforms & Containers
+  image_url: https://img.stackshare.io/service/586/n4u37v9t_400x400.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample
+  detection_source: Repo Metadata
+- name: Docker Compose
+  description: Define and run multi-container applications with Docker
+  website_url: https://github.com/docker/compose
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Container Tools
+  image_url: https://img.stackshare.io/service/3136/docker-compose.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/docker-compose.yml
+  detection_source: docker-compose.yml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: Git
+  description: Fast, scalable, distributed revision control system
+  website_url: http://git-scm.com/
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Version Control System
+  image_url: https://img.stackshare.io/service/1046/git.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample
+  detection_source: Repo Metadata
+- name: Hystrix
+  description: Latency and fault tolerance library
+  website_url: https://github.com/Netflix/Hystrix
+  open_source: false
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Fault Tolerance Tools
+  image_url: https://img.stackshare.io/service/1758/cde558e9b4a1f07ff99f90d637c38388.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/gateway-kotlin/pom.xml
+  detection_source: gateway-kotlin/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-21 14:28:46.000000000 Z
+- name: Logback
+  description: A logging framework for Java applications
+  website_url: https://logback.qos.ch/
+  open_source: false
+  hosted_saas: false
+  category: Monitoring
+  sub_category: Log Management
+  image_url: https://img.stackshare.io/service/2923/05518ecaa42841e834421e9d6987b04f_400x400.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-14 12:36:18.000000000 Z
+- name: SLF4J
+  description: Simple logging facade for Java
+  website_url: http://slf4j.org/
+  open_source: false
+  hosted_saas: false
+  category: Monitoring
+  sub_category: Log Management
+  image_url: https://img.stackshare.io/service/2805/05518ecaa42841e834421e9d6987b04f_400x400.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-11 13:46:25.000000000 Z
+- name: Apache Camel
+  description: A versatile open source integration framework
+  website_url: https://camel.apache.org/
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Application Hosting
+  sub_category: Platform as a Service
+  image_url: https://img.stackshare.io/service/3276/xWt1RFo6_400x400.jpg
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/src/main/resources/application.properties
+  detection_source: auth-service/src/main/resources/application.properties
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-14 12:36:18.000000000 Z
+- name: Mongo
+  description: Heroku provides services and tools to build, run, and scale web applications.
+    Follow @herokustatus for platform updates. A @salesforce company.
+  website_url: http://wedesignapps.herokuapp.com
+  open_source: false
+  hosted_saas: false
+  image_url: https://img.stackshare.io/service/3519/3wgIDj3j_normal.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/docker-compose.yml
+  detection_source: docker-compose.yml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: Shell
+  description: A shell is a text-based terminal, used for manipulating programs and
+    files. Shell scripts typically manage program execution.
+  website_url: https://en.wikipedia.org/wiki/Shell_script
+  open_source: false
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/4631/default_c2062d40130562bdc836c13dbca02d318205a962.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample
+  detection_source: Repo Metadata
+- name: ch.qos.logback:logback-classic
+  description: Logback-classic module
+  license: EPL-1.0,LGPL-2.1+
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-01-19 13:49:16.000000000 Z
+- name: ch.qos.logback:logback-core
+  description: Logback-core module
+  license: EPL-1.0,LGPL-2.1+
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-14 12:36:18.000000000 Z
+- name: io.projectreactor:reactor-test
+  description: Reactor Test support
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-14 12:36:18.000000000 Z
+- name: org.jetbrains.kotlin:kotlin-reflect
+  description: Kotlin Full Reflection Library
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/gateway-kotlin/pom.xml
+  detection_source: gateway-kotlin/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-21 14:28:46.000000000 Z
+- name: org.jetbrains.kotlin:kotlin-stdlib-jre8
+  open_source: false
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/gateway-kotlin/pom.xml
+  detection_source: gateway-kotlin/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2017-12-21 14:28:46.000000000 Z
+- name: org.projectlombok:lombok
+  description: 'Spice up your java: Automatic Resource Management'
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: org.slf4j:jcl-over-slf4j
+  description: JCL 1.2 implemented over SLF4J
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: org.slf4j:slf4j-api
+  description: The slf4j API
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-security
+  description: Starter for using Spring Security
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-test
+  description: Starter for testing Spring Boot applications with libraries including
+    JUnit
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
+- name: org.springframework.cloud:spring-cloud-starter-config
+  description: Spring Cloud Starter
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/gateway-kotlin/pom.xml
+  detection_source: gateway-kotlin/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-24 14:59:12.000000000 Z
+- name: org.springframework.security:spring-security-test
+  description: Spring-security-test
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/hantsy/spring-reactive-microservice-sample/blob/master/auth-service/pom.xml
+  detection_source: auth-service/pom.xml
+  last_updated_by: hantsy
+  last_updated_on: 2018-08-26 05:19:41.000000000 Z
